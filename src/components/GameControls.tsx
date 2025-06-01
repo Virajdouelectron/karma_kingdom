@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGame } from '../context/GameContext';
-import { Zap, ArrowRight, Compass, CreditCard } from 'lucide-react';
+import { Zap, ArrowRight, Compass } from 'lucide-react';
 
 const GameControls: React.FC = () => {
   const { state, dispatch, isPlayerTurn, currentPlayer } = useGame();
@@ -34,53 +34,6 @@ const GameControls: React.FC = () => {
       ability 
     });
   };
-
-  const handlePurchaseKarma = async () => {
-    try {
-      const response = await fetch('/api/create-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: 100, // Amount in smallest currency unit (e.g., paise for INR)
-          currency: 'INR',
-        }),
-      });
-
-      const { order } = await response.json();
-
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: order.amount,
-        currency: order.currency,
-        name: 'Karma Kingdom',
-        description: 'Purchase Karma Points',
-        order_id: order.id,
-        handler: function(response: any) {
-          if (currentPlayer) {
-            dispatch({
-              type: 'COLLECT_KARMA',
-              playerId: currentPlayer.id,
-              amount: 50 // Give 50 karma points for successful payment
-            });
-          }
-        },
-        prefill: {
-          name: currentPlayer?.name,
-        },
-        theme: {
-          color: '#f97316'
-        }
-      };
-
-      const razorpay = new (window as any).Razorpay(options);
-      razorpay.open();
-    } catch (error) {
-      console.error('Payment initiation failed:', error);
-      alert('Failed to initiate payment. Please try again.');
-    }
-  };
   
   if (!currentPlayer) return null;
   
@@ -94,7 +47,7 @@ const GameControls: React.FC = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-4 gap-2 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-4">
         <button 
           className={`
             px-2 py-1 rounded text-xs flex flex-col items-center justify-center
@@ -135,14 +88,6 @@ const GameControls: React.FC = () => {
         >
           <Zap size={14} />
           <span>Steal ({currentPlayer.abilities.steal})</span>
-        </button>
-
-        <button 
-          className="px-2 py-1 rounded text-xs flex flex-col items-center justify-center bg-green-600 hover:bg-green-700 text-white cursor-pointer"
-          onClick={handlePurchaseKarma}
-        >
-          <CreditCard size={14} />
-          <span>Buy Karma</span>
         </button>
       </div>
       
