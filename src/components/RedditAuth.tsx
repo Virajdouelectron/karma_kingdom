@@ -13,8 +13,8 @@ const RedditAuth: React.FC = () => {
         return;
       }
 
-      // Use the exact redirect URI that's configured in Reddit app settings
-      const redirectUri = encodeURIComponent('http://localhost:5173/auth/callback');
+      // Use the current origin for the redirect URI
+      const redirectUri = encodeURIComponent(`${window.location.origin}/callback`);
       const scope = encodeURIComponent('identity read');
       const state = Math.random().toString(36).substring(7);
       
