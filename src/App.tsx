@@ -27,7 +27,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/callback" element={<RedditCallback />} />
+        <Route path="/auth/callback" element={<RedditCallback />} />
         <Route path="/" element={
           <>
             {!isAuthenticated && <RedditAuth />}
