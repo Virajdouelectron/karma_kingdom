@@ -5,25 +5,18 @@ const RedditAuth: React.FC = () => {
   const handleRedditLogin = () => {
     // Reddit OAuth configuration
     const clientId = import.meta.env.VITE_REDDIT_CLIENT_ID;
-    const redirectUri = import.meta.env.VITE_REDIRECT_URI;
-    const scope = 'identity read';
+    const redirectUri = encodeURIComponent('http://localhost:5173/auth/callback');
+    const scope = encodeURIComponent('identity read');
     const state = Math.random().toString(36).substring(7);
     
     // Store state for verification
     localStorage.setItem('redditAuthState', state);
     
-    // Construct Reddit OAuth URL with proper encoding
-    const params = new URLSearchParams({
-      client_id: clientId,
-      response_type: 'code',
-      state: state,
-      redirect_uri: redirectUri,
-      scope: scope,
-      duration: 'temporary'
-    });
+    // Construct Reddit OAuth URL
+    const authUrl = `https://www.reddit.com/api/v1/authorize?client_id=${clientId}&response_type=code&state=${state}&redirect_uri=${redirectUri}&scope=${scope}&duration=temporary`;
     
     // Redirect to Reddit OAuth
-    window.location.href = `https://www.reddit.com/api/v1/authorize?${params.toString()}`;
+    window.location.href = authUrl;
   };
 
   return (
