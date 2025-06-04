@@ -27,7 +27,7 @@ const RedditCallback: React.FC = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Basic ${btoa('pJTFPsjoT_i6yYnEcTaocpqmpqdWSA:')}`,
+            'Authorization': `Basic ${btoa('o9ezEMqjvDl0WZ-oUhb8fw:8lwxPTL0TWyEs2uJJ-vNr_eIm1JAVg')}`,
           },
           body: new URLSearchParams({
             grant_type: 'authorization_code',
