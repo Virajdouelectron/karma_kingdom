@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createClient } from '@supabase/supabase-js';
 
 const RedditCallback: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
@@ -21,11 +22,50 @@ const RedditCallback: React.FC = () => {
           throw new Error('State mismatch - possible CSRF attack');
         }
 
-        // Store the code temporarily
-        localStorage.setItem('redditAuthCode', code);
+        // Exchange the code for tokens
+        const tokenResponse = await fetch('https://www.reddit.com/api/v1/access_token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': `Basic ${btoa('pJTFPsjoT_i6yYnEcTaocpqmpqdWSA:')}`,
+          },
+          body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            code,
+            redirect_uri: 'http://localhost:5173/auth/callback',
+          }),
+        });
+
+        if (!tokenResponse.ok) {
+          throw new Error('Failed to exchange code for token');
+        }
+
+        const tokens = await tokenResponse.json();
+        
+        // Store tokens securely
+        localStorage.setItem('redditAccessToken', tokens.access_token);
+        if (tokens.refresh_token) {
+          localStorage.setItem('redditRefreshToken', tokens.refresh_token);
+        }
+
+        // Clean up the state
         localStorage.removeItem('redditAuthState');
 
-        // Redirect back to the main app
+        // Fetch user data
+        const userResponse = await fetch('https://oauth.reddit.com/api/v1/me', {
+          headers: {
+            'Authorization': `Bearer ${tokens.access_token}`,
+          },
+        });
+
+        if (!userResponse.ok) {
+          throw new Error('Failed to fetch user data');
+        }
+
+        const userData = await userResponse.json();
+        localStorage.setItem('redditUserData', JSON.stringify(userData));
+
+        // Redirect to the main app
         navigate('/');
       } catch (err) {
         console.error('Reddit callback error:', err);

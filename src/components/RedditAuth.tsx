@@ -7,24 +7,24 @@ const RedditAuth: React.FC = () => {
   const handleRedditLogin = () => {
     try {
       // Reddit OAuth configuration
-      const clientId = import.meta.env.VITE_REDDIT_CLIENT_ID;
+      const clientId = 'pJTFPsjoT_i6yYnEcTaocpqmpqdWSA';
       if (!clientId) {
         setError('Reddit Client ID is not configured');
         return;
       }
 
-      // Use the correct callback URL format that matches your Reddit app configuration
+      // Use the correct callback URL that matches your Reddit app configuration
       const redirectUri = encodeURIComponent('http://localhost:5173/auth/callback');
       const scope = encodeURIComponent('identity read');
       const state = Math.random().toString(36).substring(7);
+      const duration = 'permanent'; // Changed to permanent for refresh token support
       
       // Store state for verification
       localStorage.setItem('redditAuthState', state);
       
       // Construct Reddit OAuth URL with proper encoding
-      const authUrl = `https://www.reddit.com/api/v1/authorize?client_id=${clientId}&response_type=code&state=${state}&redirect_uri=${redirectUri}&scope=${scope}&duration=temporary`;
+      const authUrl = `https://www.reddit.com/api/v1/authorize?client_id=${clientId}&response_type=code&state=${state}&redirect_uri=${redirectUri}&scope=${scope}&duration=${duration}`;
       
-      console.log('Attempting Reddit auth with URL:', authUrl);
       window.location.href = authUrl;
     } catch (err) {
       console.error('Reddit auth error:', err);
