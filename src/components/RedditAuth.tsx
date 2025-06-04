@@ -2,33 +2,48 @@ import React, { useState } from 'react';
 import { LogIn } from 'lucide-react';
 
 const RedditAuth: React.FC = () => {
+  const [credentials, setCredentials] = useState({
+    username: '',
+    password: ''
+  });
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleRedditLogin = () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
     try {
-      // Reddit OAuth configuration
-      const clientId = 'o9ezEMqjvDl0WZ-oUhb8fw';
-      if (!clientId) {
-        setError('Reddit Client ID is not configured');
-        return;
+      const response = await fetch('https://www.reddit.com/api/v1/access_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${btoa('o9ezEMqjvDl0WZ-oUhb8fw:8lwxPTL0TWyEs2uJJ-vNr_eIm1JAVg')}`
+        },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          username: credentials.username,
+          password: credentials.password
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Authentication failed');
       }
 
-      // Use the correct callback URL that matches your Reddit app configuration
-      const redirectUri = encodeURIComponent('http://localhost:5173/auth/callback');
-      const scope = encodeURIComponent('identity read');
-      const state = Math.random().toString(36).substring(7);
-      const duration = 'permanent'; // Changed to permanent for refresh token support
-      
-      // Store state for verification
-      localStorage.setItem('redditAuthState', state);
-      
-      // Construct Reddit OAuth URL with proper encoding
-      const authUrl = `https://www.reddit.com/api/v1/authorize?client_id=${clientId}&response_type=code&state=${state}&redirect_uri=${redirectUri}&scope=${scope}&duration=${duration}`;
-      
-      window.location.href = authUrl;
+      const data = await response.json();
+      localStorage.setItem('redditAccessToken', data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem('redditRefreshToken', data.refresh_token);
+      }
+
+      window.location.href = '/';
     } catch (err) {
       console.error('Reddit auth error:', err);
-      setError('Failed to initialize Reddit authentication');
+      setError('Authentication failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -39,20 +54,50 @@ const RedditAuth: React.FC = () => {
         <p className="text-gray-300 mb-6">
           Connect with your Reddit account to start playing and earning karma!
         </p>
+        
         {error && (
           <div className="bg-red-500/20 border border-red-500 text-red-200 p-3 rounded-md mb-4">
             {error}
           </div>
         )}
-        <button
-          onClick={handleRedditLogin}
-          className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white py-3 px-6 rounded-lg font-semibold transition-colors"
-        >
-          <LogIn size={20} />
-          Login with Reddit
-        </button>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <input
+              type="text"
+              placeholder="Reddit Username"
+              className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-orange-500 focus:outline-none"
+              value={credentials.username}
+              onChange={(e) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
+            />
+          </div>
+          <div>
+            <input
+              type="password"
+              placeholder="Reddit Password"
+              className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-orange-500 focus:outline-none"
+              value={credentials.password}
+              onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white py-3 px-6 rounded-lg font-semibold transition-colors disabled:bg-orange-800 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+            ) : (
+              <>
+                <LogIn size={20} />
+                Login with Reddit
+              </>
+            )}
+          </button>
+        </form>
+
         <p className="text-gray-400 text-sm mt-4">
-          Make sure you're logged into Reddit before connecting.
+          Your credentials are sent directly to Reddit's servers.
         </p>
       </div>
     </div>
