@@ -7,7 +7,7 @@ const RedditAuth: React.FC = () => {
   const handleRedditLogin = () => {
     try {
       // Reddit OAuth configuration
-      const clientId = 'pJTFPsjoT_i6yYnEcTaocpqmpqdWSA';
+      const clientId = 'OrXKeX_0gTBn9c0hfhBoRQ';
       if (!clientId) {
         setError('Reddit Client ID is not configured');
         return;
