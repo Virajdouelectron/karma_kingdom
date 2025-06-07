@@ -62,7 +62,7 @@ const RedditCallback: React.FC = () => {
         {status === 'loading' && (
           <>
             <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Loader className="text-white animate-spin" size={32} />
+              <Loader className="text-white animate-spin\" size={32} />
             </div>
             <h2 className="text-xl font-bold text-white mb-2">Connecting to Reddit...</h2>
             <p className="text-gray-300">Please wait while we verify your authentication.</p>
