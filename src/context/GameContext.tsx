@@ -1,19 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { GameState, GameAction, Player, Tile } from '../types/game';
 import { generateBoard } from '../utils/boardGenerator';
-
-const initialPlayer: Player = {
-  id: 'player1',
-  name: 'Redditor',
-  avatar: 'https://www.redditstatic.com/avatars/avatar_default_02_FF4500.png',
-  position: { x: 0, y: 0 },
-  karma: 0,
-  abilities: {
-    doubleMove: 0,
-    teleport: 0,
-    steal: 0
-  }
-};
+import { useRedditAuth } from '../hooks/useRedditAuth';
 
 const AI_PLAYERS: Player[] = [
   {
@@ -42,17 +30,30 @@ const AI_PLAYERS: Player[] = [
   }
 ];
 
-const initialState: GameState = {
-  board: generateBoard(5, 5),
-  players: [initialPlayer, ...AI_PLAYERS],
-  currentPlayerId: initialPlayer.id,
-  gameWeek: 1,
-  lastMoveTime: Date.now()
-};
-
 // Game reducer to handle all game actions
 const gameReducer = (state: GameState, action: GameAction): GameState => {
   switch (action.type) {
+    case 'INITIALIZE_PLAYER': {
+      const humanPlayer: Player = {
+        id: 'player1',
+        name: action.playerName,
+        avatar: action.playerAvatar,
+        position: { x: 0, y: 0 },
+        karma: 0,
+        abilities: {
+          doubleMove: 0,
+          teleport: 0,
+          steal: 0
+        }
+      };
+
+      return {
+        ...state,
+        players: [humanPlayer, ...AI_PLAYERS],
+        currentPlayerId: humanPlayer.id
+      };
+    }
+    
     case 'MOVE': {
       const updatedPlayers = state.players.map(player => {
         if (player.id === action.playerId) {
@@ -195,15 +196,34 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     
     case 'RESET_GAME': {
       return {
-        ...initialState,
+        ...state,
         board: generateBoard(5, 5),
-        gameWeek: state.gameWeek + 1
+        gameWeek: state.gameWeek + 1,
+        players: state.players.map(player => ({
+          ...player,
+          karma: 0,
+          abilities: {
+            doubleMove: 0,
+            teleport: 0,
+            steal: 0
+          },
+          position: player.id === 'player1' ? { x: 0, y: 0 } :
+                   player.id === 'ai1' ? { x: 4, y: 0 } : { x: 0, y: 4 }
+        }))
       };
     }
     
     default:
       return state;
   }
+};
+
+const initialState: GameState = {
+  board: generateBoard(5, 5),
+  players: [],
+  currentPlayerId: '',
+  gameWeek: 1,
+  lastMoveTime: Date.now()
 };
 
 type GameContextType = {
@@ -218,9 +238,21 @@ const GameContext = createContext<GameContextType | null>(null);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
+  const { user, isAuthenticated } = useRedditAuth();
+  
+  // Initialize player when Reddit user is available
+  useEffect(() => {
+    if (isAuthenticated && user && state.players.length === 0) {
+      dispatch({
+        type: 'INITIALIZE_PLAYER',
+        playerName: user.name,
+        playerAvatar: user.icon_img?.replace(/&amp;/g, '&') || 'https://www.redditstatic.com/avatars/avatar_default_02_FF4500.png'
+      });
+    }
+  }, [isAuthenticated, user, state.players.length]);
   
   // Determine if it's the player's turn
-  const isPlayerTurn = state.currentPlayerId === initialPlayer.id;
+  const isPlayerTurn = state.currentPlayerId === 'player1';
   
   // Get the current player
   const currentPlayer = state.players.find(p => p.id === state.currentPlayerId) || null;
@@ -246,7 +278,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // AI player logic
   useEffect(() => {
     // If it's an AI player's turn, make a move after a short delay
-    if (!isPlayerTurn) {
+    if (!isPlayerTurn && state.players.length > 0) {
       const timeoutId = setTimeout(() => {
         const aiPlayer = state.players.find(p => p.id === state.currentPlayerId);
         if (!aiPlayer) return;
@@ -283,7 +315,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       return () => clearTimeout(timeoutId);
     }
-  }, [state.currentPlayerId, isPlayerTurn]);
+  }, [state.currentPlayerId, isPlayerTurn, state.players.length]);
   
   return (
     <GameContext.Provider value={{ state, dispatch, isPlayerTurn, currentPlayer, canMove }}>

@@ -33,6 +33,7 @@ export interface GameState {
 }
 
 export type GameAction = 
+  | { type: 'INITIALIZE_PLAYER'; playerName: string; playerAvatar: string }
   | { type: 'MOVE'; playerId: string; position: Position }
   | { type: 'USE_ABILITY'; playerId: string; ability: 'doubleMove' | 'teleport' | 'steal'; targetPosition?: Position; targetPlayerId?: string }
   | { type: 'COLLECT_KARMA'; playerId: string; amount: number }
