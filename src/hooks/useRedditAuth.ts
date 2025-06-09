@@ -8,6 +8,12 @@ interface UseRedditAuthReturn {
   error: string | null;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
+  authStatus: {
+    hasAccessToken: boolean;
+    hasRefreshToken: boolean;
+    isTokenValid: boolean;
+    tokenExpiresAt: Date | null;
+  };
 }
 
 export const useRedditAuth = (): UseRedditAuthReturn => {
@@ -21,26 +27,65 @@ export const useRedditAuth = (): UseRedditAuthReturn => {
       setIsLoading(true);
       setError(null);
 
-      // Check if we have a valid token
-      if (!redditAuth.isTokenValid()) {
-        // Try to refresh the token
-        const refreshed = await redditAuth.refreshToken();
-        if (!refreshed) {
-          setIsAuthenticated(false);
-          setUser(null);
+      // Check if Reddit OAuth is configured
+      if (!redditAuth.isConfigured()) {
+        console.log('Reddit OAuth not configured, skipping auth check');
+        setIsAuthenticated(false);
+        setUser(null);
+        setError('Reddit OAuth is not configured. Please set up your environment variables.');
+        return;
+      }
+
+      const authStatus = redditAuth.getAuthStatus();
+      console.log('Auth status:', authStatus);
+
+      // If no access token at all, user needs to authenticate
+      if (!authStatus.hasAccessToken) {
+        console.log('No access token found');
+        setIsAuthenticated(false);
+        setUser(null);
+        return;
+      }
+
+      // If token is valid, try to get user info
+      if (authStatus.isTokenValid) {
+        console.log('Token is valid, getting user info...');
+        const currentUser = await redditAuth.getCurrentUser();
+        if (currentUser) {
+          setIsAuthenticated(true);
+          setUser(currentUser);
+          console.log('User authenticated successfully:', currentUser.name);
           return;
         }
       }
 
-      // Get current user info
-      const currentUser = await redditAuth.getCurrentUser();
-      if (currentUser) {
-        setIsAuthenticated(true);
-        setUser(currentUser);
+      // Token is expired or invalid, try to refresh if we have refresh token
+      if (authStatus.hasRefreshToken) {
+        console.log('Token expired, attempting refresh...');
+        const refreshed = await redditAuth.refreshToken();
+        if (refreshed) {
+          console.log('Token refreshed successfully');
+          // Try to get user info with new token
+          const currentUser = await redditAuth.getCurrentUser();
+          if (currentUser) {
+            setIsAuthenticated(true);
+            setUser(currentUser);
+            console.log('User re-authenticated after refresh:', currentUser.name);
+            return;
+          }
+        } else {
+          console.log('Token refresh failed');
+          setError('Session expired. Please log in again.');
+        }
       } else {
-        setIsAuthenticated(false);
-        setUser(null);
+        console.log('No refresh token available');
+        setError('No refresh token available. Please log in again.');
       }
+
+      // If we get here, authentication failed
+      setIsAuthenticated(false);
+      setUser(null);
+      
     } catch (err) {
       console.error('Auth check failed:', err);
       setError(err instanceof Error ? err.message : 'Authentication check failed');
@@ -58,6 +103,7 @@ export const useRedditAuth = (): UseRedditAuthReturn => {
       setIsAuthenticated(false);
       setUser(null);
       setError(null);
+      console.log('User logged out successfully');
     } catch (err) {
       console.error('Logout failed:', err);
       setError(err instanceof Error ? err.message : 'Logout failed');
@@ -67,6 +113,7 @@ export const useRedditAuth = (): UseRedditAuthReturn => {
   };
 
   const refreshAuth = async () => {
+    console.log('Manual auth refresh requested');
     await checkAuthStatus();
   };
 
@@ -80,6 +127,7 @@ export const useRedditAuth = (): UseRedditAuthReturn => {
     isLoading,
     error,
     logout,
-    refreshAuth
+    refreshAuth,
+    authStatus: redditAuth.getAuthStatus()
   };
 };

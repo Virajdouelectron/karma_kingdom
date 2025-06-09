@@ -32,7 +32,8 @@ class RedditAuthService {
     this.redirectUri = import.meta.env.VITE_REDDIT_REDIRECT_URI;
     
     if (!this.clientId || !this.redirectUri) {
-      throw new Error('Reddit OAuth configuration missing. Please check your environment variables.');
+      console.warn('Reddit OAuth configuration missing. Please check your environment variables.');
+      // Don't throw error immediately - allow app to show configuration instructions
     }
   }
 
@@ -61,9 +62,20 @@ class RedditAuthService {
   }
 
   /**
+   * Check if OAuth is properly configured
+   */
+  isConfigured(): boolean {
+    return !!(this.clientId && this.redirectUri);
+  }
+
+  /**
    * Construct the Reddit authorization URL
    */
   getAuthorizationUrl(): string {
+    if (!this.isConfigured()) {
+      throw new Error('Reddit OAuth is not configured. Please set up your environment variables.');
+    }
+
     const state = this.generateState();
     sessionStorage.setItem('reddit_oauth_state', state);
     
@@ -72,7 +84,7 @@ class RedditAuthService {
       response_type: 'code',
       state: state,
       redirect_uri: this.redirectUri,
-      duration: 'permanent',
+      duration: 'permanent', // CRITICAL: This ensures we get a refresh token
       scope: this.scopes.join(' ')
     });
 
@@ -83,6 +95,10 @@ class RedditAuthService {
    * Exchange authorization code for access token
    */
   async exchangeCodeForToken(code: string, state: string): Promise<RedditTokenResponse> {
+    if (!this.isConfigured()) {
+      throw new Error('Reddit OAuth is not configured');
+    }
+
     // Verify state parameter
     const storedState = sessionStorage.getItem('reddit_oauth_state');
     if (!storedState || storedState !== state) {
@@ -109,10 +125,16 @@ class RedditAuthService {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('Token exchange failed:', errorText);
       throw new Error(`Token exchange failed: ${response.status} ${errorText}`);
     }
 
     const tokenData: RedditTokenResponse = await response.json();
+    
+    // CRITICAL: Verify we received a refresh token
+    if (!tokenData.refresh_token) {
+      console.warn('No refresh token received. This may cause authentication issues.');
+    }
     
     // Store tokens securely
     this.storeTokens(tokenData);
@@ -124,9 +146,15 @@ class RedditAuthService {
    * Refresh the access token using refresh token
    */
   async refreshToken(): Promise<RedditTokenResponse | null> {
+    if (!this.isConfigured()) {
+      console.error('Reddit OAuth is not configured');
+      return null;
+    }
+
     const refreshToken = localStorage.getItem('reddit_refresh_token');
     if (!refreshToken) {
-      throw new Error('No refresh token available');
+      console.warn('No refresh token available for token refresh');
+      return null;
     }
 
     await this.enforceRateLimit();
@@ -146,11 +174,18 @@ class RedditAuthService {
       });
 
       if (!response.ok) {
-        throw new Error(`Token refresh failed: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Token refresh failed:', response.status, errorText);
+        
+        // If refresh fails, clear all tokens
+        this.clearTokens();
+        return null;
       }
 
       const tokenData: RedditTokenResponse = await response.json();
-      this.storeTokens(tokenData);
+      
+      // Store the new tokens (refresh token might be the same or new)
+      this.storeTokens(tokenData, refreshToken);
       
       return tokenData;
     } catch (error) {
@@ -164,8 +199,13 @@ class RedditAuthService {
    * Get current user information
    */
   async getCurrentUser(): Promise<RedditUser | null> {
+    if (!this.isConfigured()) {
+      return null;
+    }
+
     const accessToken = localStorage.getItem('reddit_access_token');
     if (!accessToken) {
+      console.warn('No access token available');
       return null;
     }
 
@@ -180,11 +220,14 @@ class RedditAuthService {
       });
 
       if (response.status === 401) {
+        console.log('Access token expired, attempting refresh...');
         // Token expired, try to refresh
         const refreshed = await this.refreshToken();
         if (refreshed) {
+          console.log('Token refreshed successfully, retrying user request...');
           return this.getCurrentUser(); // Retry with new token
         }
+        console.warn('Token refresh failed, user needs to re-authenticate');
         return null;
       }
 
@@ -192,7 +235,9 @@ class RedditAuthService {
         throw new Error(`Failed to get user info: ${response.status}`);
       }
 
-      return await response.json();
+      const userData = await response.json();
+      console.log('User data retrieved successfully');
+      return userData;
     } catch (error) {
       console.error('Failed to get current user:', error);
       return null;
@@ -203,6 +248,10 @@ class RedditAuthService {
    * Make authenticated API request to Reddit
    */
   async makeAuthenticatedRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
+    if (!this.isConfigured()) {
+      throw new Error('Reddit OAuth is not configured');
+    }
+
     const accessToken = localStorage.getItem('reddit_access_token');
     if (!accessToken) {
       throw new Error('No access token available');
@@ -233,16 +282,32 @@ class RedditAuthService {
   }
 
   /**
-   * Store tokens securely
+   * Store tokens securely with better error handling
    */
-  private storeTokens(tokenData: RedditTokenResponse): void {
-    localStorage.setItem('reddit_access_token', tokenData.access_token);
-    localStorage.setItem('reddit_token_expires_at', 
-      (Date.now() + (tokenData.expires_in * 1000)).toString()
-    );
-    
-    if (tokenData.refresh_token) {
-      localStorage.setItem('reddit_refresh_token', tokenData.refresh_token);
+  private storeTokens(tokenData: RedditTokenResponse, existingRefreshToken?: string): void {
+    try {
+      // Store access token and expiration
+      localStorage.setItem('reddit_access_token', tokenData.access_token);
+      localStorage.setItem('reddit_token_expires_at', 
+        (Date.now() + (tokenData.expires_in * 1000)).toString()
+      );
+      
+      // Store refresh token (use new one if provided, otherwise keep existing)
+      const refreshToken = tokenData.refresh_token || existingRefreshToken;
+      if (refreshToken) {
+        localStorage.setItem('reddit_refresh_token', refreshToken);
+        console.log('Tokens stored successfully with refresh token');
+      } else {
+        console.warn('No refresh token to store - this may cause authentication issues');
+      }
+      
+      // Store additional metadata
+      localStorage.setItem('reddit_token_scope', tokenData.scope || '');
+      localStorage.setItem('reddit_token_stored_at', Date.now().toString());
+      
+    } catch (error) {
+      console.error('Failed to store tokens:', error);
+      throw new Error('Failed to store authentication tokens');
     }
   }
 
@@ -257,22 +322,65 @@ class RedditAuthService {
       return false;
     }
 
-    return Date.now() < parseInt(expiresAt);
+    // Add 5 minute buffer before expiration
+    const bufferTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+    return Date.now() < (parseInt(expiresAt) - bufferTime);
+  }
+
+  /**
+   * Check if we have a refresh token available
+   */
+  hasRefreshToken(): boolean {
+    return !!localStorage.getItem('reddit_refresh_token');
+  }
+
+  /**
+   * Get authentication status summary
+   */
+  getAuthStatus(): {
+    hasAccessToken: boolean;
+    hasRefreshToken: boolean;
+    isTokenValid: boolean;
+    tokenExpiresAt: Date | null;
+  } {
+    const expiresAt = localStorage.getItem('reddit_token_expires_at');
+    
+    return {
+      hasAccessToken: !!localStorage.getItem('reddit_access_token'),
+      hasRefreshToken: this.hasRefreshToken(),
+      isTokenValid: this.isTokenValid(),
+      tokenExpiresAt: expiresAt ? new Date(parseInt(expiresAt)) : null
+    };
   }
 
   /**
    * Clear all stored tokens
    */
   clearTokens(): void {
-    localStorage.removeItem('reddit_access_token');
-    localStorage.removeItem('reddit_refresh_token');
-    localStorage.removeItem('reddit_token_expires_at');
+    const keysToRemove = [
+      'reddit_access_token',
+      'reddit_refresh_token',
+      'reddit_token_expires_at',
+      'reddit_token_scope',
+      'reddit_token_stored_at'
+    ];
+    
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+    });
+    
+    console.log('All Reddit tokens cleared');
   }
 
   /**
    * Revoke the current access token
    */
   async revokeToken(): Promise<void> {
+    if (!this.isConfigured()) {
+      this.clearTokens();
+      return;
+    }
+
     const accessToken = localStorage.getItem('reddit_access_token');
     if (!accessToken) {
       return;
@@ -291,6 +399,7 @@ class RedditAuthService {
           token_type_hint: 'access_token'
         })
       });
+      console.log('Token revoked successfully');
     } catch (error) {
       console.error('Failed to revoke token:', error);
     } finally {
