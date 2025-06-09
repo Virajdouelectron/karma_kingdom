@@ -9,6 +9,7 @@ import GameInfo from './components/GameInfo';
 import RedditAuth from './components/RedditAuth';
 import RedditCallback from './components/RedditCallback';
 import UserProfile from './components/UserProfile';
+import AdminPanel from './components/AdminPanel';
 import { ArrowUp, Loader } from 'lucide-react';
 
 const GameApp: React.FC = () => {
@@ -38,6 +39,7 @@ const GameApp: React.FC = () => {
 
   return (
     <>
+      <AdminPanel />
       {!isAuthenticated && <RedditAuth />}
       <GameProvider>
         <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white p-4">

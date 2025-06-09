@@ -14,9 +14,15 @@ interface RedditUser {
   created_utc: number;
 }
 
+interface RedditConfig {
+  client_id: string;
+  redirect_uri: string;
+}
+
+import { getActiveRedditConfig } from './supabaseClient';
+
 class RedditAuthService {
-  private readonly clientId: string;
-  private readonly redirectUri: string;
+  private config: RedditConfig | null = null;
   private readonly baseUrl = 'https://www.reddit.com';
   private readonly apiUrl = 'https://oauth.reddit.com';
   
@@ -28,13 +34,48 @@ class RedditAuthService {
   private readonly minRequestInterval = 1000; // 1 second between requests
 
   constructor() {
-    this.clientId = import.meta.env.VITE_REDDIT_CLIENT_ID;
-    this.redirectUri = import.meta.env.VITE_REDDIT_REDIRECT_URI;
-    
-    if (!this.clientId || !this.redirectUri) {
-      console.warn('Reddit OAuth configuration missing. Please check your environment variables.');
-      // Don't throw error immediately - allow app to show configuration instructions
+    // Initialize configuration from Supabase
+    this.initializeConfig();
+  }
+
+  /**
+   * Initialize Reddit OAuth configuration from Supabase
+   */
+  private async initializeConfig(): Promise<void> {
+    try {
+      // First try to get config from Supabase
+      const supabaseConfig = await getActiveRedditConfig();
+      
+      if (supabaseConfig) {
+        this.config = supabaseConfig;
+        console.log('Reddit OAuth config loaded from Supabase');
+        return;
+      }
+      
+      // Fallback to environment variables
+      const envClientId = import.meta.env.VITE_REDDIT_CLIENT_ID;
+      const envRedirectUri = import.meta.env.VITE_REDDIT_REDIRECT_URI;
+      
+      if (envClientId && envRedirectUri) {
+        this.config = {
+          client_id: envClientId,
+          redirect_uri: envRedirectUri
+        };
+        console.log('Reddit OAuth config loaded from environment variables');
+        return;
+      }
+      
+      console.warn('No Reddit OAuth configuration found in Supabase or environment variables');
+    } catch (error) {
+      console.error('Failed to initialize Reddit OAuth config:', error);
     }
+  }
+
+  /**
+   * Refresh configuration from Supabase
+   */
+  async refreshConfig(): Promise<void> {
+    await this.initializeConfig();
   }
 
   /**
@@ -65,25 +106,32 @@ class RedditAuthService {
    * Check if OAuth is properly configured
    */
   isConfigured(): boolean {
-    return !!(this.clientId && this.redirectUri);
+    return !!(this.config?.client_id && this.config?.redirect_uri);
+  }
+
+  /**
+   * Get current configuration
+   */
+  getConfig(): RedditConfig | null {
+    return this.config;
   }
 
   /**
    * Construct the Reddit authorization URL
    */
   getAuthorizationUrl(): string {
-    if (!this.isConfigured()) {
-      throw new Error('Reddit OAuth is not configured. Please set up your environment variables.');
+    if (!this.isConfigured() || !this.config) {
+      throw new Error('Reddit OAuth is not configured. Please set up your configuration in Supabase.');
     }
 
     const state = this.generateState();
     sessionStorage.setItem('reddit_oauth_state', state);
     
     const params = new URLSearchParams({
-      client_id: this.clientId,
+      client_id: this.config.client_id,
       response_type: 'code',
       state: state,
-      redirect_uri: this.redirectUri,
+      redirect_uri: this.config.redirect_uri,
       duration: 'permanent', // CRITICAL: This ensures we get a refresh token
       scope: this.scopes.join(' ')
     });
@@ -95,7 +143,7 @@ class RedditAuthService {
    * Exchange authorization code for access token
    */
   async exchangeCodeForToken(code: string, state: string): Promise<RedditTokenResponse> {
-    if (!this.isConfigured()) {
+    if (!this.isConfigured() || !this.config) {
       throw new Error('Reddit OAuth is not configured');
     }
 
@@ -113,13 +161,13 @@ class RedditAuthService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${btoa(`${this.clientId}:`)}`,
+        'Authorization': `Basic ${btoa(`${this.config.client_id}:`)}`,
         'User-Agent': 'KarmaKingdom/1.0.0'
       },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code: code,
-        redirect_uri: this.redirectUri
+        redirect_uri: this.config.redirect_uri
       })
     });
 
@@ -146,7 +194,7 @@ class RedditAuthService {
    * Refresh the access token using refresh token
    */
   async refreshToken(): Promise<RedditTokenResponse | null> {
-    if (!this.isConfigured()) {
+    if (!this.isConfigured() || !this.config) {
       console.error('Reddit OAuth is not configured');
       return null;
     }
@@ -164,7 +212,7 @@ class RedditAuthService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${btoa(`${this.clientId}:`)}`,
+          'Authorization': `Basic ${btoa(`${this.config.client_id}:`)}`,
           'User-Agent': 'KarmaKingdom/1.0.0'
         },
         body: new URLSearchParams({
@@ -376,7 +424,7 @@ class RedditAuthService {
    * Revoke the current access token
    */
   async revokeToken(): Promise<void> {
-    if (!this.isConfigured()) {
+    if (!this.isConfigured() || !this.config) {
       this.clearTokens();
       return;
     }
@@ -391,7 +439,7 @@ class RedditAuthService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${btoa(`${this.clientId}:`)}`,
+          'Authorization': `Basic ${btoa(`${this.config.client_id}:`)}`,
           'User-Agent': 'KarmaKingdom/1.0.0'
         },
         body: new URLSearchParams({
