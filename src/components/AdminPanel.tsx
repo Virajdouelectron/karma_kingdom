@@ -5,7 +5,7 @@ import { redditAuth } from '../services/redditAuth';
 
 const AdminPanel: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [clientId, setClientId] = useState('');
+  const [clientId, setClientId] = useState('o9ezEMqjvDl0WZ-oUhb8fw');
   const [clientSecret, setClientSecret] = useState('');
   const [redirectUri, setRedirectUri] = useState('');
   const [showSecret, setShowSecret] = useState(false);
@@ -28,12 +28,16 @@ const AdminPanel: React.FC = () => {
         // Set default redirect URI based on current environment
         const currentUrl = window.location.origin;
         setRedirectUri(currentUrl + '/auth/callback');
+        // Keep the pre-filled client ID
+        setClientId('o9ezEMqjvDl0WZ-oUhb8fw');
       }
     } catch (error) {
       console.error('Failed to load config:', error);
       // Set default redirect URI based on current environment
       const currentUrl = window.location.origin;
       setRedirectUri(currentUrl + '/auth/callback');
+      // Keep the pre-filled client ID
+      setClientId('o9ezEMqjvDl0WZ-oUhb8fw');
     }
   };
 
@@ -62,12 +66,11 @@ const AdminPanel: React.FC = () => {
         // Refresh the Reddit auth service configuration
         await redditAuth.refreshConfig();
         
-        setMessage({ type: 'success', text: 'Reddit OAuth configuration updated successfully!' });
+        setMessage({ type: 'success', text: 'Reddit OAuth configuration updated successfully! You can now close this panel and try logging in.' });
         
-        // Clear the form after a delay
+        // Clear the client secret after saving
         setTimeout(() => {
           setClientSecret('');
-          setMessage(null);
         }, 3000);
       } else {
         setMessage({ type: 'error', text: 'Failed to update configuration' });
@@ -117,6 +120,9 @@ const AdminPanel: React.FC = () => {
               className="w-full px-3 py-2 bg-gray-700 text-white rounded-md border border-gray-600 focus:border-orange-500 focus:outline-none"
               placeholder="Enter Reddit app client ID"
             />
+            <p className="text-xs text-green-400 mt-1">
+              ✓ Client ID has been pre-filled for you
+            </p>
           </div>
 
           <div>
@@ -214,6 +220,12 @@ const AdminPanel: React.FC = () => {
             <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded">
               <p className="text-blue-300 text-xs">
                 <strong>Important:</strong> Make sure your Reddit app's redirect URI exactly matches the one shown above, including the protocol (https://).
+              </p>
+            </div>
+            
+            <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded">
+              <p className="text-green-300 text-xs">
+                <strong>Ready to go!</strong> The client ID has been pre-filled. Just click "Save Configuration" to enable Reddit login.
               </p>
             </div>
           </div>
