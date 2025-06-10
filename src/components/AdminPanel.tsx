@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { Settings, Save, Eye, EyeOff, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import { updateRedditConfig, getActiveRedditConfig } from '../services/supabaseClient';
 import { redditAuth } from '../services/redditAuth';
 
@@ -25,11 +25,15 @@ const AdminPanel: React.FC = () => {
         setClientId(config.client_id);
         setRedirectUri(config.redirect_uri);
       } else {
-        // Set default redirect URI
-        setRedirectUri(window.location.origin + '/auth/callback');
+        // Set default redirect URI based on current environment
+        const currentUrl = window.location.origin;
+        setRedirectUri(currentUrl + '/auth/callback');
       }
     } catch (error) {
       console.error('Failed to load config:', error);
+      // Set default redirect URI based on current environment
+      const currentUrl = window.location.origin;
+      setRedirectUri(currentUrl + '/auth/callback');
     }
   };
 
@@ -90,7 +94,7 @@ const AdminPanel: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+      <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-white">Reddit OAuth Configuration</h2>
           <button
@@ -148,6 +152,9 @@ const AdminPanel: React.FC = () => {
               className="w-full px-3 py-2 bg-gray-700 text-white rounded-md border border-gray-600 focus:border-orange-500 focus:outline-none"
               placeholder="https://yourdomain.com/auth/callback"
             />
+            <p className="text-xs text-gray-400 mt-1">
+              Current domain: {window.location.origin}
+            </p>
           </div>
 
           {message && (
@@ -184,14 +191,31 @@ const AdminPanel: React.FC = () => {
           </div>
 
           <div className="text-xs text-gray-400 mt-4 pt-4 border-t border-gray-700">
-            <p className="mb-2"><strong>Setup Instructions:</strong></p>
-            <ol className="list-decimal list-inside space-y-1">
-              <li>Visit <a href="https://www.reddit.com/prefs/apps" target="_blank" rel="noopener noreferrer" className="text-blue-300 hover:underline">Reddit Apps</a></li>
-              <li>Create a new "web app"</li>
-              <li>Set the redirect URI to the value above</li>
-              <li>Copy the client ID and paste it here</li>
-              <li>Save the configuration</li>
+            <p className="mb-3"><strong>Setup Instructions:</strong></p>
+            <ol className="list-decimal list-inside space-y-2">
+              <li>
+                Visit{' '}
+                <a 
+                  href="https://www.reddit.com/prefs/apps" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-blue-300 hover:underline inline-flex items-center gap-1"
+                >
+                  Reddit Apps <ExternalLink size={12} />
+                </a>
+              </li>
+              <li>Click "Create App" or "Create Another App"</li>
+              <li>Choose "web app" as the app type</li>
+              <li>Set the redirect URI to: <code className="bg-gray-700 px-1 rounded text-orange-300">{redirectUri}</code></li>
+              <li>Copy the client ID (string under your app name)</li>
+              <li>Paste the client ID above and save</li>
             </ol>
+            
+            <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded">
+              <p className="text-blue-300 text-xs">
+                <strong>Important:</strong> Make sure your Reddit app's redirect URI exactly matches the one shown above, including the protocol (https://).
+              </p>
+            </div>
           </div>
         </div>
       </div>
