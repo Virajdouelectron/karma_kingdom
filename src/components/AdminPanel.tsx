@@ -5,7 +5,7 @@ import { redditAuth } from '../services/redditAuth';
 
 const AdminPanel: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [clientId, setClientId] = useState('o9ezEMqjvDl0WZ-oUhb8fw');
+  const [clientId, setClientId] = useState('oRHe6dkduxlHnAT8PEh2AQ');
   const [clientSecret, setClientSecret] = useState('');
   const [redirectUri, setRedirectUri] = useState('');
   const [showSecret, setShowSecret] = useState(false);
@@ -29,7 +29,7 @@ const AdminPanel: React.FC = () => {
         const currentUrl = window.location.origin;
         setRedirectUri(currentUrl + '/auth/callback');
         // Keep the pre-filled client ID
-        setClientId('o9ezEMqjvDl0WZ-oUhb8fw');
+        setClientId('oRHe6dkduxlHnAT8PEh2AQ');
       }
     } catch (error) {
       console.error('Failed to load config:', error);
@@ -37,7 +37,7 @@ const AdminPanel: React.FC = () => {
       const currentUrl = window.location.origin;
       setRedirectUri(currentUrl + '/auth/callback');
       // Keep the pre-filled client ID
-      setClientId('o9ezEMqjvDl0WZ-oUhb8fw');
+      setClientId('oRHe6dkduxlHnAT8PEh2AQ');
     }
   };
 
@@ -121,7 +121,7 @@ const AdminPanel: React.FC = () => {
               placeholder="Enter Reddit app client ID"
             />
             <p className="text-xs text-green-400 mt-1">
-              ✓ Client ID has been pre-filled for you
+              ✓ Client ID has been updated to the new value
             </p>
           </div>
 
@@ -225,7 +225,7 @@ const AdminPanel: React.FC = () => {
             
             <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded">
               <p className="text-green-300 text-xs">
-                <strong>Ready to go!</strong> The client ID has been pre-filled. Just click "Save Configuration" to enable Reddit login.
+                <strong>Ready to go!</strong> The client ID has been updated. Just click "Save Configuration" to enable Reddit login.
               </p>
             </div>
           </div>
