@@ -34,27 +34,31 @@ class RedditAuthService {
   private readonly minRequestInterval = 1000; // 1 second between requests
 
   constructor() {
-    // Initialize configuration from Supabase
+    // Initialize configuration from Supabase or environment variables
     this.initializeConfig();
   }
 
   /**
-   * Initialize Reddit OAuth configuration from Supabase
+   * Initialize Reddit OAuth configuration from Supabase or environment variables
    */
   private async initializeConfig(): Promise<void> {
     try {
       console.log('Initializing Reddit OAuth configuration...');
       
       // First try to get config from Supabase
-      const supabaseConfig = await getActiveRedditConfig();
-      
-      if (supabaseConfig) {
-        this.config = supabaseConfig;
-        console.log('Reddit OAuth config loaded from Supabase:', {
-          client_id: supabaseConfig.client_id ? 'Set' : 'Missing',
-          redirect_uri: supabaseConfig.redirect_uri
-        });
-        return;
+      try {
+        const supabaseConfig = await getActiveRedditConfig();
+        
+        if (supabaseConfig) {
+          this.config = supabaseConfig;
+          console.log('Reddit OAuth config loaded from Supabase:', {
+            client_id: supabaseConfig.client_id ? 'Set' : 'Missing',
+            redirect_uri: supabaseConfig.redirect_uri
+          });
+          return;
+        }
+      } catch (supabaseError) {
+        console.warn('Failed to load config from Supabase, trying environment variables:', supabaseError);
       }
       
       // Fallback to environment variables

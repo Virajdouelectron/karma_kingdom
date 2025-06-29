@@ -4,10 +4,12 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env file.');
+  console.warn('Missing Supabase environment variables. Some features may not work.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 // Types for our database
 export interface RedditOAuthConfig {
@@ -23,6 +25,11 @@ export interface RedditOAuthConfig {
 
 // Function to get active Reddit OAuth configuration
 export async function getActiveRedditConfig(): Promise<{ client_id: string; redirect_uri: string } | null> {
+  if (!supabase) {
+    console.warn('Supabase not configured, falling back to environment variables');
+    return null;
+  }
+
   try {
     const { data, error } = await supabase.rpc('get_active_reddit_config');
     
@@ -44,6 +51,10 @@ export async function updateRedditConfig(
   clientSecret?: string,
   redirectUri: string = window.location.origin + '/auth/callback'
 ): Promise<string | null> {
+  if (!supabase) {
+    throw new Error('Supabase not configured. Cannot update Reddit configuration.');
+  }
+
   try {
     const { data, error } = await supabase.rpc('update_reddit_config', {
       p_client_id: clientId,
