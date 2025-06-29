@@ -43,12 +43,17 @@ class RedditAuthService {
    */
   private async initializeConfig(): Promise<void> {
     try {
+      console.log('Initializing Reddit OAuth configuration...');
+      
       // First try to get config from Supabase
       const supabaseConfig = await getActiveRedditConfig();
       
       if (supabaseConfig) {
         this.config = supabaseConfig;
-        console.log('Reddit OAuth config loaded from Supabase');
+        console.log('Reddit OAuth config loaded from Supabase:', {
+          client_id: supabaseConfig.client_id ? 'Set' : 'Missing',
+          redirect_uri: supabaseConfig.redirect_uri
+        });
         return;
       }
       
@@ -75,6 +80,7 @@ class RedditAuthService {
    * Refresh configuration from Supabase
    */
   async refreshConfig(): Promise<void> {
+    console.log('Refreshing Reddit OAuth configuration...');
     await this.initializeConfig();
   }
 
@@ -106,7 +112,14 @@ class RedditAuthService {
    * Check if OAuth is properly configured
    */
   isConfigured(): boolean {
-    return !!(this.config?.client_id && this.config?.redirect_uri);
+    const configured = !!(this.config?.client_id && this.config?.redirect_uri);
+    console.log('OAuth configured check:', {
+      hasConfig: !!this.config,
+      hasClientId: !!this.config?.client_id,
+      hasRedirectUri: !!this.config?.redirect_uri,
+      configured
+    });
+    return configured;
   }
 
   /**
@@ -121,7 +134,7 @@ class RedditAuthService {
    */
   getAuthorizationUrl(): string {
     if (!this.isConfigured() || !this.config) {
-      throw new Error('Reddit OAuth is not configured. Please set up your configuration in Supabase.');
+      throw new Error('Reddit OAuth is not configured. Please set up your configuration in the admin panel.');
     }
 
     const state = this.generateState();

@@ -38,7 +38,7 @@ export async function getActiveRedditConfig(): Promise<{ client_id: string; redi
   }
 }
 
-// Function to update Reddit OAuth configuration (admin only)
+// Function to update Reddit OAuth configuration
 export async function updateRedditConfig(
   clientId: string,
   clientSecret?: string,
@@ -47,18 +47,19 @@ export async function updateRedditConfig(
   try {
     const { data, error } = await supabase.rpc('update_reddit_config', {
       p_client_id: clientId,
-      p_client_secret: clientSecret,
+      p_client_secret: clientSecret || null,
       p_redirect_uri: redirectUri
     });
     
     if (error) {
       console.error('Error updating Reddit config:', error);
-      return null;
+      throw new Error(`Failed to update configuration: ${error.message}`);
     }
     
+    console.log('Reddit config updated successfully:', data);
     return data;
   } catch (error) {
     console.error('Failed to update Reddit config:', error);
-    return null;
+    throw error;
   }
 }
