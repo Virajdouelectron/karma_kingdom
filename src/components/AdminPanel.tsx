@@ -77,7 +77,7 @@ const AdminPanel: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to update config:', error);
-      setMessage({ type: 'error', text: 'Failed to update configuration' });
+      setMessage({ type: 'error', text: `Failed to update configuration: ${error instanceof Error ? error.message : 'Unknown error'}` });
     } finally {
       setIsLoading(false);
     }
@@ -120,8 +120,8 @@ const AdminPanel: React.FC = () => {
               className="w-full px-3 py-2 bg-gray-700 text-white rounded-md border border-gray-600 focus:border-orange-500 focus:outline-none"
               placeholder="Enter Reddit app client ID"
             />
-            <p className="text-xs text-green-400 mt-1">
-              ✓ Client ID has been updated to the new value
+            <p className="text-xs text-blue-400 mt-1">
+              Current: {clientId || 'Not set'}
             </p>
           </div>
 
@@ -223,9 +223,9 @@ const AdminPanel: React.FC = () => {
               </p>
             </div>
             
-            <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded">
-              <p className="text-green-300 text-xs">
-                <strong>Ready to go!</strong> The client ID has been updated. Just click "Save Configuration" to enable Reddit login.
+            <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded">
+              <p className="text-yellow-300 text-xs">
+                <strong>For Production:</strong> You need to update your Reddit app's redirect URI to use the deployed domain: <code className="bg-gray-700 px-1 rounded">{window.location.origin}/auth/callback</code>
               </p>
             </div>
           </div>
