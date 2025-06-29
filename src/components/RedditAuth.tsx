@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogIn, ExternalLink, AlertCircle, Settings, RefreshCw } from 'lucide-react';
+import { LogIn, ExternalLink, AlertCircle, Settings, RefreshCw, CheckCircle } from 'lucide-react';
 import { redditAuth } from '../services/redditAuth';
 
 const RedditAuth: React.FC = () => {
@@ -7,6 +7,29 @@ const RedditAuth: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [configStatus, setConfigStatus] = useState<'checking' | 'configured' | 'not-configured'>('checking');
+
+  React.useEffect(() => {
+    checkConfiguration();
+  }, []);
+
+  const checkConfiguration = async () => {
+    setConfigStatus('checking');
+    try {
+      await redditAuth.refreshConfig();
+      const isConfigured = redditAuth.isConfigured();
+      setConfigStatus(isConfigured ? 'configured' : 'not-configured');
+      if (!isConfigured) {
+        setError('Reddit OAuth is not configured. Please use the admin panel to set up your Reddit app credentials.');
+      } else {
+        setError(null);
+      }
+    } catch (err) {
+      console.error('Failed to check configuration:', err);
+      setConfigStatus('not-configured');
+      setError('Failed to check Reddit OAuth configuration.');
+    }
+  };
 
   const handleLogin = async () => {
     setIsLoading(true);
@@ -33,7 +56,7 @@ const RedditAuth: React.FC = () => {
     setIsRefreshing(true);
     try {
       await redditAuth.refreshConfig();
-      setError(null);
+      await checkConfiguration();
     } catch (err) {
       console.error('Failed to refresh config:', err);
       setError('Failed to refresh configuration');
@@ -58,6 +81,30 @@ const RedditAuth: React.FC = () => {
             Connect with your Reddit account to start playing and earning karma!
           </p>
         </div>
+
+        {/* Configuration Status */}
+        <div className="mb-4">
+          {configStatus === 'checking' && (
+            <div className="flex items-center justify-center gap-2 text-blue-400 text-sm">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent" />
+              Checking configuration...
+            </div>
+          )}
+          
+          {configStatus === 'configured' && (
+            <div className="flex items-center justify-center gap-2 text-green-400 text-sm">
+              <CheckCircle size={16} />
+              Reddit OAuth configured
+            </div>
+          )}
+          
+          {configStatus === 'not-configured' && (
+            <div className="flex items-center justify-center gap-2 text-yellow-400 text-sm">
+              <AlertCircle size={16} />
+              Configuration needed
+            </div>
+          )}
+        </div>
         
         {error && (
           <div className="bg-red-500/20 border border-red-500 text-red-200 p-3 rounded-md mb-4 flex items-start gap-2">
@@ -66,8 +113,8 @@ const RedditAuth: React.FC = () => {
               {error}
               {error.includes('not configured') && (
                 <div className="mt-2 text-xs">
-                  <p>Reddit OAuth needs to be configured by an administrator.</p>
-                  <p className="mt-1">Contact the site admin to set up Reddit integration.</p>
+                  <p>Click the settings icon in the top-right corner to configure Reddit OAuth.</p>
+                  <p className="mt-1">You'll need your Reddit app's client ID and redirect URI.</p>
                 </div>
               )}
             </div>
@@ -77,7 +124,7 @@ const RedditAuth: React.FC = () => {
         <div className="flex gap-2 mb-4">
           <button
             onClick={handleLogin}
-            disabled={isLoading || !isConfigured}
+            disabled={isLoading || configStatus !== 'configured'}
             className="flex items-center justify-center gap-2 flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 px-6 rounded-lg font-semibold transition-colors disabled:bg-orange-800 disabled:cursor-not-allowed group"
           >
             {isLoading ? (
@@ -117,10 +164,11 @@ const RedditAuth: React.FC = () => {
                 <div>OAuth Configured: <span className={isConfigured ? 'text-green-400' : 'text-red-400'}>{isConfigured ? 'Yes' : 'No'}</span></div>
                 {config && (
                   <>
-                    <div>Client ID: <span className="text-gray-300">{config.client_id ? 'Set' : 'Missing'}</span></div>
+                    <div>Client ID: <span className="text-gray-300">{config.client_id ? `${config.client_id.substring(0, 8)}...` : 'Missing'}</span></div>
                     <div>Redirect URI: <span className="text-gray-300">{config.redirect_uri || 'Missing'}</span></div>
                   </>
                 )}
+                <div>Current Domain: <span className="text-gray-300">{window.location.origin}</span></div>
                 <div>Has Access Token: <span className={authStatus.hasAccessToken ? 'text-green-400' : 'text-red-400'}>{authStatus.hasAccessToken ? 'Yes' : 'No'}</span></div>
                 <div>Has Refresh Token: <span className={authStatus.hasRefreshToken ? 'text-green-400' : 'text-red-400'}>{authStatus.hasRefreshToken ? 'Yes' : 'No'}</span></div>
                 <div>Token Valid: <span className={authStatus.isTokenValid ? 'text-green-400' : 'text-red-400'}>{authStatus.isTokenValid ? 'Yes' : 'No'}</span></div>
