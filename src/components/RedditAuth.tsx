@@ -6,30 +6,6 @@ const RedditAuth: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [configStatus, setConfigStatus] = useState<'checking' | 'configured' | 'not-configured'>('checking');
-
-  React.useEffect(() => {
-    checkConfiguration();
-  }, []);
-
-  const checkConfiguration = async () => {
-    setConfigStatus('checking');
-    try {
-      await redditAuth.refreshConfig();
-      const isConfigured = redditAuth.isConfigured();
-      setConfigStatus(isConfigured ? 'configured' : 'not-configured');
-      if (!isConfigured) {
-        setError('Reddit OAuth is not configured. Please use the admin panel to set up your Reddit app credentials.');
-      } else {
-        setError(null);
-      }
-    } catch (err) {
-      console.error('Failed to check configuration:', err);
-      setConfigStatus('not-configured');
-      setError('Failed to check Reddit OAuth configuration.');
-    }
-  };
 
   const handleLogin = async () => {
     setIsLoading(true);
@@ -38,7 +14,7 @@ const RedditAuth: React.FC = () => {
     try {
       // Check if environment variables are configured
       if (!redditAuth.isConfigured()) {
-        throw new Error('Reddit OAuth is not configured. Please set up your configuration in the admin panel.');
+        throw new Error('Reddit OAuth is not configured properly.');
       }
 
       // Redirect to Reddit OAuth
@@ -49,19 +25,6 @@ const RedditAuth: React.FC = () => {
       console.error('Reddit auth error:', err);
       setError(err instanceof Error ? err.message : 'Authentication failed');
       setIsLoading(false);
-    }
-  };
-
-  const handleRefreshConfig = async () => {
-    setIsRefreshing(true);
-    try {
-      await redditAuth.refreshConfig();
-      await checkConfiguration();
-    } catch (err) {
-      console.error('Failed to refresh config:', err);
-      setError('Failed to refresh configuration');
-    } finally {
-      setIsRefreshing(false);
     }
   };
 
@@ -84,24 +47,15 @@ const RedditAuth: React.FC = () => {
 
         {/* Configuration Status */}
         <div className="mb-4">
-          {configStatus === 'checking' && (
-            <div className="flex items-center justify-center gap-2 text-blue-400 text-sm">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent" />
-              Checking configuration...
-            </div>
-          )}
-          
-          {configStatus === 'configured' && (
+          {isConfigured ? (
             <div className="flex items-center justify-center gap-2 text-green-400 text-sm">
               <CheckCircle size={16} />
-              Reddit OAuth configured
+              Reddit OAuth configured and ready
             </div>
-          )}
-          
-          {configStatus === 'not-configured' && (
-            <div className="flex items-center justify-center gap-2 text-yellow-400 text-sm">
+          ) : (
+            <div className="flex items-center justify-center gap-2 text-red-400 text-sm">
               <AlertCircle size={16} />
-              Configuration needed
+              Configuration error
             </div>
           )}
         </div>
@@ -111,21 +65,15 @@ const RedditAuth: React.FC = () => {
             <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
             <div className="text-sm text-left">
               {error}
-              {error.includes('not configured') && (
-                <div className="mt-2 text-xs">
-                  <p>Click the settings icon in the top-right corner to configure Reddit OAuth.</p>
-                  <p className="mt-1">You'll need your Reddit app's client ID and redirect URI.</p>
-                </div>
-              )}
             </div>
           </div>
         )}
 
-        <div className="flex gap-2 mb-4">
+        <div className="mb-4">
           <button
             onClick={handleLogin}
-            disabled={isLoading || configStatus !== 'configured'}
-            className="flex items-center justify-center gap-2 flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 px-6 rounded-lg font-semibold transition-colors disabled:bg-orange-800 disabled:cursor-not-allowed group"
+            disabled={isLoading || !isConfigured}
+            className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white py-3 px-6 rounded-lg font-semibold transition-colors disabled:bg-orange-800 disabled:cursor-not-allowed group"
           >
             {isLoading ? (
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
@@ -136,15 +84,6 @@ const RedditAuth: React.FC = () => {
                 <ExternalLink size={16} className="opacity-60 group-hover:opacity-100 transition-opacity" />
               </>
             )}
-          </button>
-
-          <button
-            onClick={handleRefreshConfig}
-            disabled={isRefreshing}
-            className="bg-gray-600 hover:bg-gray-700 text-white p-3 rounded-lg transition-colors disabled:bg-gray-800 disabled:cursor-not-allowed"
-            title="Refresh Configuration"
-          >
-            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
           </button>
         </div>
 

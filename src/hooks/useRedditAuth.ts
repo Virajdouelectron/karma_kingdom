@@ -29,10 +29,10 @@ export const useRedditAuth = (): UseRedditAuthReturn => {
 
       // Check if Reddit OAuth is configured
       if (!redditAuth.isConfigured()) {
-        console.log('Reddit OAuth not configured, skipping auth check');
+        console.log('Reddit OAuth not configured');
         setIsAuthenticated(false);
         setUser(null);
-        setError('Reddit OAuth is not configured. Please set up your environment variables.');
+        setError('Reddit OAuth is not configured properly.');
         return;
       }
 
